@@ -2,7 +2,7 @@
 
 ## [Download Here][Download]
 
-[Download]: https://github.com/thekevinholman/SCOM.GatewayMaintenanceMode/archive/master.zip
+[Download]: https://github.com/thekevinholman/SCOM.GatewayMaintenanceMode/archive/refs/heads/main.zip
 
 SCOM - Automatic maintenance mode for agents when their gateway is unavailable
 
