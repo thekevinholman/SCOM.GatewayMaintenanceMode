@@ -1,0 +1,2282 @@
+﻿<?xml version="1.0" encoding="utf-8"?><ManagementPack ContentReadable="true" SchemaVersion="2.0" OriginalSchemaVersion="1.1" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <Manifest>
+    <Identity>
+      <ID>SCOM.GatewayMaintenanceMode</ID>
+      <Version>1.0.0.0</Version>
+    </Identity>
+    <Name>SCOM Gateway Maintenance Mode</Name>
+    <References>
+      <Reference Alias="Windows">
+        <ID>Microsoft.Windows.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Performance">
+        <ID>System.Performance.Library</ID>
+        <Version>7.0.8433.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="SCIG">
+        <ID>Microsoft.SystemCenter.InstanceGroup.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="System">
+        <ID>System.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="SC">
+        <ID>Microsoft.SystemCenter.Library</ID>
+        <Version>7.0.8433.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Health">
+        <ID>System.Health.Library</ID>
+        <Version>7.0.8433.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+    </References>
+  </Manifest>
+  <TypeDefinitions>
+    <EntityTypes>
+      <ClassTypes>
+        <ClassType ID="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group" Accessibility="Public" Abstract="false" Base="SCIG!Microsoft.SystemCenter.InstanceGroup" Hosted="false" Singleton="true" Extension="false" />
+        <ClassType ID="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group" Accessibility="Public" Abstract="false" Base="SCIG!Microsoft.SystemCenter.InstanceGroup" Hosted="false" Singleton="true" Extension="false" />
+      </ClassTypes>
+      <RelationshipTypes>
+        <RelationshipType ID="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group.Contains.Windows.Computers" Accessibility="Internal" Abstract="false" Base="System!System.Containment">
+          <Source ID="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group.Rel.Source" MinCardinality="0" MaxCardinality="2147483647" Type="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group" />
+          <Target ID="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group.Rel.Target" MinCardinality="0" MaxCardinality="2147483647" Type="Windows!Microsoft.Windows.Computer" />
+        </RelationshipType>
+        <RelationshipType ID="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group.Contains.Windows.Computers" Accessibility="Internal" Abstract="false" Base="System!System.Containment">
+          <Source ID="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group.Rel.Source" MinCardinality="0" MaxCardinality="2147483647" Type="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group" />
+          <Target ID="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group.Rel.Target" MinCardinality="0" MaxCardinality="2147483647" Type="Windows!Microsoft.Windows.Computer" />
+        </RelationshipType>
+      </RelationshipTypes>
+    </EntityTypes>
+    <ModuleTypes>
+      <DataSourceModuleType ID="SCOM.GatewayMaintenanceMode.Ping.Monitor.DS" Accessibility="Internal" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="Scheduler" TypeID="System!System.Scheduler">
+                <Scheduler>
+                  <SimpleReccuringSchedule>
+                    <Interval Unit="Seconds">$Config/IntervalSeconds$</Interval>
+                    <SyncTime>$Config/SyncTime$</SyncTime>
+                  </SimpleReccuringSchedule>
+                  <ExcludeDates />
+                </Scheduler>
+              </DataSource>
+              <ProbeAction ID="PA" TypeID="Windows!Microsoft.Windows.PowerShellPropertyBagTriggerOnlyProbe">
+                <ScriptName>SCOM.GatewayMaintenanceMode.Ping.Monitor.DS.ps1</ScriptName>
+                <ScriptBody>
+#=================================================================================
+#  Ping a Gateway Script
+#
+#  Author: Kevin Holman
+#  v1.1
+#=================================================================================
+param([string]$ComputerName)
+
+
+# Manual Testing section - put stuff here for manually testing script - typically parameters:
+#=================================================================================
+# $ComputerName = "dmzomgw1.dmz.net"
+#=================================================================================
+
+
+# Constants section - modify stuff here:
+#=================================================================================
+# Assign script name variable for use in event logging.  
+$ScriptName = "SCOM.GatewayMaintenanceMode.Ping.Monitor.DS.ps1"
+$EventID = "1234"
+#=================================================================================
+
+
+# Starting Script section - All scripts get this
+#=================================================================================
+# Gather the start time of the script
+$StartTime = Get-Date
+#Set variable to be used in logging events
+$whoami = whoami
+# Load MOMScript API
+$momapi = New-Object -comObject MOM.ScriptAPI
+# Load PropertyBag function 
+$bag = $momapi.CreatePropertyBag()
+#Log script event that we are starting task
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script is starting. `n Running as ($whoami).")
+#=================================================================================
+
+
+# Begin MAIN script section
+#=================================================================================
+#Log script parameters we received
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript parameters: `nComputerName: ($ComputerName).")
+
+#Ping the Gateway:
+$PingTest = Test-Connection -ComputerName $ComputerName -Quiet
+
+IF ($PingTest -eq $true)
+{
+  $Result = "PingSuccess"
+}
+ELSE
+{
+  $Result = "PingFailed" 
+}
+
+#Create Propertybag
+$bag.AddValue('Result',$Result)
+$bag.AddValue('ComputerName',$ComputerName)
+
+# Return all bags
+$bag
+#=================================================================================
+# End MAIN script section
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed for Gateway ($ComputerName). `nResult was ($Result). `nScript Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+# End of script
+								</ScriptBody>
+                <Parameters>
+                  <Parameter>
+                    <Name>ComputerName</Name>
+                    <Value>$Config/ComputerName$</Value>
+                  </Parameter>
+                </Parameters>
+                <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+              </ProbeAction>
+            </MemberModules>
+            <Composition>
+              <Node ID="PA">
+                <Node ID="Scheduler" />
+              </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.PropertyBagData</OutputType>
+      </DataSourceModuleType>
+      <WriteActionModuleType ID="SCOM.GatewayMaintenanceMode.Ping.Monitor.Recovery.WA" Accessibility="Public" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" name="ComputerName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="Action" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="TimeoutSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <WriteAction ID="PSWA" TypeID="Windows!Microsoft.Windows.PowerShellWriteAction">
+                <ScriptName>SCOM.GatewayMaintenanceMode.Ping.Monitor.Recovery.WA.ps1</ScriptName>
+                <ScriptBody>
+#=================================================================================
+#  Start or Stop Group Maintenance Mode Recovery Script
+#
+#  Author:  Kevin Holman
+#  Version:  1.2
+#=================================================================================
+param([string]$ComputerName,[string]$Action)
+
+
+# Manual Testing section - put stuff here for manually testing script - typically parameters:
+#=================================================================================
+# $ComputerName = "dmzomgw1.dmz.net"
+# $Action = "Start"
+#=================================================================================
+
+
+# Constants section - modify stuff here:
+#=================================================================================
+# Assign script name variable for use in event logging
+$ScriptName = "SCOM.GatewayMaintenanceMode.Ping.Monitor.Recovery.WA.ps1"
+$EventID = "1235"
+#=================================================================================
+
+
+# Starting Script section
+#=================================================================================
+# Gather the start time of the script
+$StartTime = Get-Date
+#Set variable to be used in logging events
+$whoami = whoami
+# Load MOMScript API
+$momapi = New-Object -comObject MOM.ScriptAPI
+#=================================================================================
+
+
+# Connect to local SCOM Management Group Section - If required
+#=================================================================================
+# I have found this to be the most reliable method to load SCOM modules for scripts running on Management Servers
+# Clear any previous errors
+$Error.Clear()
+# Import the OperationsManager module and connect to the management group
+$SCOMPowerShellKey = "HKLM:\SOFTWARE\Microsoft\System Center Operations Manager\12\Setup\Powershell\V2"
+$SCOMModulePath = Join-Path (Get-ItemProperty $SCOMPowerShellKey).InstallDirectory "OperationsManager"
+Import-module $SCOMModulePath
+TRY
+{
+  New-DefaultManagementGroupConnection -managementServerName "localhost"
+}
+CATCH
+{
+  IF ($Error) 
+  { 
+    $momapi.LogScriptEvent($ScriptName,$EventID,1,"`n FATAL ERROR: Unable to load OperationsManager module or unable to connect to Management Server. `n Terminating script. `n Error is: ($Error).")
+    EXIT
+  }
+}
+#=================================================================================
+
+
+# Begin MAIN script section
+#=================================================================================
+#Log script event that we are starting task
+$Message = "`nRecovery script is starting for Computer: ($ComputerName). `nAction: ($Action) `nRunning as ($whoami)."
+$momapi.LogScriptEvent($ScriptName,$EventID,0,$Message)
+#Using Write-Host in a recovery action will output your data to the monitor statechange context in Health Explorer
+Write-Host $Message
+
+#Get Computer NetBIOSName
+$ComputerNameSplit = $ComputerName.Split(".")
+$ComputerNetBIOSName = $ComputerNameSplit[0]
+
+#Get SCOM Group 
+$GroupName = "Gateway $ComputerNetBIOSName Assigned Computers Group"
+$Group = Get-SCOMGroup -DisplayName $GroupName
+
+IF ($Action -eq "Start")
+{
+  #Put the SCOM Group into MM
+  #Check to see if GROUP is already in MM
+  $ExistingMM = Get-SCOMMaintenanceMode -Instance $Group
+  IF ($ExistingMM)
+  {
+    #Group object is already in MM.  
+    $ExistingMMComments = $ExistingMM.Comments
+    $Message = "`nThe Group for Gateway: ($ComputerNetBIOSName) was already in Maintenance Mode."
+    $momapi.LogScriptEvent($ScriptName,$EventID,0,$Message)
+    Write-Host $Message
+  }
+  ELSE
+  {
+    # Place Group into MM - Set an end date 1 months out - Use special comment for identification
+    $Time = ((Get-Date).AddMonths(1))
+    Start-SCOMMaintenanceMode -Instance $Group -EndTime $Time -Comment "Gateway Outage Maintenance Mode based on Group" -Reason "PlannedOther"
+ 
+    #Check to verify the Group is in maintenance mode
+    [string]$MMComments = (Get-SCOMMaintenanceMode -Instance $Group).Comments
+    IF ($MMComments -eq "Gateway Outage Maintenance Mode based on Group")
+    {
+      #Server is verified in MM
+      $Message = "`nThe Group named ($GroupName) was verified that it is in Gateway Outage Maintenance Mode."
+      $momapi.LogScriptEvent($ScriptName,$EventID,0,$Message)
+      Write-Host $Message
+    }
+    ELSE
+    {
+      #Something went wrong throw exception
+      $Message = "`nFATAL ERROR: We attempted to set Maintenance Mode for computer: ($GroupName) but were not able to confirm MM was set correctly."
+      $momapi.LogScriptEvent($ScriptName,$EventID,2,$Message)
+      Write-Host $Message
+    }  
+  }
+}
+
+IF ($Action -eq "Stop")
+{
+  #Remove the SCOM Group from MM
+  #Check to see if GROUP is in Special Gateway Group MM
+  $ExistingMM = Get-SCOMMaintenanceMode -Instance $Group
+  IF ($ExistingMM)
+  {
+    #Group object is in MM.  
+    $ExistingMMComments = $ExistingMM.Comments
+    $Message = "`nThe Group for Gateway: ($ComputerNetBIOSName) was already in Maintenance Mode."
+    $momapi.LogScriptEvent($ScriptName,$EventID,0,$Message)
+    Write-Host $Message
+	
+    IF ($ExistingMMComments -eq "Gateway Outage Maintenance Mode based on Group")
+    {
+	  #Stop Maintenance Mode
+	  Write-Host "Removing Group from MM"
+	  $Group.StopMaintenanceMode([System.DateTime]::Now.ToUniversalTime(),[Microsoft.EnterpriseManagement.Common.TraversalDepth]::Recursive);
+
+	  #Add a check here to verify MM was removed.
+	}
+	ELSE
+	{
+	  #Log that the group was already in MM for some other reason and no action will be taken
+	}
+  }
+}
+#=================================================================================
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript Completed. `nScript Runtime: ($ScriptTime) seconds.")
+Write-Host "Script Completed. Script Runtime: ($ScriptTime) seconds."
+#=================================================================================
+# End of script	
+								</ScriptBody>
+                <Parameters>
+                  <Parameter>
+                    <Name>ComputerName</Name>
+                    <Value>$Config/ComputerName$</Value>
+                  </Parameter>
+                  <Parameter>
+                    <Name>Action</Name>
+                    <Value>$Config/Action$</Value>
+                  </Parameter>
+                </Parameters>
+                <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+              </WriteAction>
+            </MemberModules>
+            <Composition>
+              <Node ID="PSWA" />
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.BaseData</OutputType>
+        <InputType>System!System.BaseData</InputType>
+      </WriteActionModuleType>
+    </ModuleTypes>
+    <MonitorTypes>
+      <UnitMonitorType ID="SCOM.GatewayMaintenanceMode.Ping.Monitor.MonitorType" Accessibility="Internal">
+        <MonitorTypeStates>
+          <MonitorTypeState ID="GoodCondition" NoDetection="false" />
+          <MonitorTypeState ID="BadCondition" NoDetection="false" />
+        </MonitorTypeStates>
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="MatchCount" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="MatchCount" Selector="$Config/MatchCount$" ParameterType="int" />
+        </OverrideableParameters>
+        <MonitorImplementation>
+          <MemberModules>
+            <DataSource ID="DS" TypeID="SCOM.GatewayMaintenanceMode.Ping.Monitor.DS">
+              <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
+              <SyncTime>$Config/SyncTime$</SyncTime>
+              <ComputerName>$Config/ComputerName$</ComputerName>
+              <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+            </DataSource>
+            <ConditionDetection ID="GoodConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Result']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">PingSuccess</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+            <ConditionDetection ID="BadConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Result']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">PingFailed</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <SuppressionSettings>
+                <MatchCount>$Config/MatchCount$</MatchCount>
+              </SuppressionSettings>
+            </ConditionDetection>
+          </MemberModules>
+          <RegularDetections>
+            <RegularDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+            <RegularDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+          </RegularDetections>
+        </MonitorImplementation>
+      </UnitMonitorType>
+    </MonitorTypes>
+  </TypeDefinitions>
+  <Monitoring>
+    <Discoveries>
+      <Discovery ID="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group.Discovery" Enabled="true" Target="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group" />
+        </DiscoveryTypes>
+        <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.TimedPowerShell.DiscoveryProvider">
+          <IntervalSeconds>86331</IntervalSeconds>
+          <SyncTime />
+          <ScriptName>SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group.Discovery.ps1</ScriptName>
+          <ScriptBody>
+#=================================================================================
+#  Group Population script based on PowerShell
+#
+#  Kevin Holman
+#  v1.0
+#=================================================================================
+param($SourceID, $ManagedEntityID, [string]$GroupDisplayName)
+
+
+# Manual Testing section - put stuff here for manually testing script - typically parameters:
+#=================================================================================
+# $SourceId = '{00000000-0000-0000-0000-000000000000}'
+# $ManagedEntityId = '{00000000-0000-0000-0000-000000000000}'
+# [string]$GroupDisplayName = "Gateway DMZOMGW1 Assigned Computers Group"
+#=================================================================================
+
+
+# Constants section - modify stuff here:
+#=================================================================================
+#Get the Gateway Name
+$GroupDisplayNameSplit = $GroupDisplayName.Split(" ")
+[string]$GWNetBIOSName = $GroupDisplayNameSplit[1]
+
+# Assign script name variable for use in event logging
+$ScriptName = "SCOM.GatewayMaintenanceMode." + $GWNetBIOSName + "Computers.Group.Discovery.ps1"
+$EventID = "1236"
+#=================================================================================
+
+
+# Starting Script section - All scripts get this
+#=================================================================================
+# Gather the start time of the script
+$StartTime = Get-Date
+# Load MOMScript API
+$momapi = New-Object -comObject MOM.ScriptAPI
+# Load SCOM Discovery module
+$DiscoveryData = $momapi.CreateDiscoveryData(0, $SourceId, $ManagedEntityId)
+#Set variables to be used in logging events
+$whoami = whoami
+#Log script event that we are starting task
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript is starting for group: ($GroupDisplayName). `nRunning as ($whoami).")
+#=================================================================================
+
+
+# Connect to local SCOM Management Group Section
+#=================================================================================
+# Clear any previous errors
+$Error.Clear()
+# Import the OperationsManager module and connect to the management group
+$SCOMPowerShellKey = "HKLM:\SOFTWARE\Microsoft\System Center Operations Manager\12\Setup\Powershell\V2"
+$SCOMModulePath = Join-Path (Get-ItemProperty $SCOMPowerShellKey).InstallDirectory "OperationsManager"
+Import-module $SCOMModulePath
+New-DefaultManagementGroupConnection "localhost"
+IF ($Error) 
+{ 
+  $momapi.LogScriptEvent($ScriptName,$EventID,1,"`n FATAL ERROR: Failure loading OperationsManager module or unable to connect to the management server. `n Terminating script. `n Error is: ($Error).")
+  EXIT
+}
+#=================================================================================
+
+
+# Begin MAIN script section
+#=================================================================================
+#Get the gateway object
+$Gateway = Get-SCOMManagementServer | where {$_.Name –match $GWNetBIOSName}
+$Agents = Get-SCOMAgent -ManagementServer $Gateway
+
+###Discovery Section
+#Set the group instance ID
+[string]$GroupInstanceID = "SCOM.GatewayMaintenanceMode." + $GWNetBIOSName + "Computers.Group"
+#Set the Relationship instance ID
+[string]$RelationshipInstanceID = "SCOM.GatewayMaintenanceMode." + $GWNetBIOSName + "Computers.Group.Contains.Windows.Computers"
+
+#Set the group instance we will discover members of
+$GroupInstance = $DiscoveryData.CreateClassInstance("$MPElement[Name='SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group']$")
+
+# Loop through each Name and add a group membership containment relationship to the discovery data
+$i=0;
+FOREACH ($Agent in $Agents)
+{
+  [string]$AgentName = $Agent.Name
+  $i = $i+1
+  $ServerInstance = $DiscoveryData.CreateClassInstance("$MPElement[Name='Windows!Microsoft.Windows.Computer']$")
+  $ServerInstance.AddProperty("$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", $AgentName) 
+  $RelationshipInstance = $DiscoveryData.CreateRelationshipInstance("$MPElement[Name='SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group.Contains.Windows.Computers']$")
+  $RelationshipInstance.Source = $GroupInstance
+  $RelationshipInstance.Target = $ServerInstance
+  $DiscoveryData.AddInstance($RelationshipInstance)   
+}
+
+IF ($i -ge 1)
+{
+  $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nSuccessfully found ($i) Computers to add to the group: ($GroupInstanceID).")
+}
+ELSE
+{
+  $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nERROR: No computers were found for Gateway: ($GWNetBIOSName). `nTerminating script.")
+  EXIT
+}
+
+# Return Discovery Items Normally           
+ $DiscoveryData
+
+# Return Discovery Bag to the command line for testing (does not work from ISE)
+# $momapi.Return($DiscoveryData)
+#=================================================================================
+# End MAIN script section
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script Ending. `n Script Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+#End Script
+					</ScriptBody>
+          <Parameters>
+            <Parameter>
+              <Name>sourceId</Name>
+              <Value>$MPElement$</Value>
+            </Parameter>
+            <Parameter>
+              <Name>managedEntityId</Name>
+              <Value>$Target/Id$</Value>
+            </Parameter>
+            <Parameter>
+              <Name>GroupDisplayName</Name>
+              <Value>$Target/Property[Type="System!System.Entity"]/DisplayName$</Value>
+            </Parameter>
+          </Parameters>
+          <TimeoutSeconds>300</TimeoutSeconds>
+        </DataSource>
+      </Discovery>
+      <Discovery ID="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group.Discovery" Enabled="true" Target="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group" />
+        </DiscoveryTypes>
+        <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.TimedPowerShell.DiscoveryProvider">
+          <IntervalSeconds>86331</IntervalSeconds>
+          <SyncTime />
+          <ScriptName>SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group.Discovery.ps1</ScriptName>
+          <ScriptBody>
+#=================================================================================
+#  Group Population script based on PowerShell
+#
+#  Kevin Holman
+#  v1.0
+#=================================================================================
+param($SourceID, $ManagedEntityID, [string]$GroupDisplayName)
+
+
+# Manual Testing section - put stuff here for manually testing script - typically parameters:
+#=================================================================================
+# $SourceId = '{00000000-0000-0000-0000-000000000000}'
+# $ManagedEntityId = '{00000000-0000-0000-0000-000000000000}'
+# [string]$GroupDisplayName = "Gateway DMZOMGW1 Assigned Computers Group"
+#=================================================================================
+
+
+# Constants section - modify stuff here:
+#=================================================================================
+#Get the Gateway Name
+$GroupDisplayNameSplit = $GroupDisplayName.Split(" ")
+[string]$GWNetBIOSName = $GroupDisplayNameSplit[1]
+
+# Assign script name variable for use in event logging
+$ScriptName = "SCOM.GatewayMaintenanceMode." + $GWNetBIOSName + "Computers.Group.Discovery.ps1"
+$EventID = "1236"
+#=================================================================================
+
+
+# Starting Script section - All scripts get this
+#=================================================================================
+# Gather the start time of the script
+$StartTime = Get-Date
+# Load MOMScript API
+$momapi = New-Object -comObject MOM.ScriptAPI
+# Load SCOM Discovery module
+$DiscoveryData = $momapi.CreateDiscoveryData(0, $SourceId, $ManagedEntityId)
+#Set variables to be used in logging events
+$whoami = whoami
+#Log script event that we are starting task
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script is starting. `n Running as ($whoami).")
+#=================================================================================
+
+
+# Connect to local SCOM Management Group Section
+#=================================================================================
+# Clear any previous errors
+$Error.Clear()
+# Import the OperationsManager module and connect to the management group
+$SCOMPowerShellKey = "HKLM:\SOFTWARE\Microsoft\System Center Operations Manager\12\Setup\Powershell\V2"
+$SCOMModulePath = Join-Path (Get-ItemProperty $SCOMPowerShellKey).InstallDirectory "OperationsManager"
+Import-module $SCOMModulePath
+New-DefaultManagementGroupConnection "localhost"
+IF ($Error) 
+{ 
+  $momapi.LogScriptEvent($ScriptName,$EventID,1,"`n FATAL ERROR: Failure loading OperationsManager module or unable to connect to the management server. `n Terminating script. `n Error is: ($Error).")
+  EXIT
+}
+#=================================================================================
+
+
+# Begin MAIN script section
+#=================================================================================
+#Get the gateway object
+$Gateway = Get-SCOMManagementServer | where {$_.Name –match $GWNetBIOSName}
+$Agents = Get-SCOMAgent -ManagementServer $Gateway
+
+###Discovery Section
+#Set the group instance ID
+[string]$GroupInstanceID = "SCOM.GatewayMaintenanceMode." + $GWNetBIOSName + "Computers.Group"
+#Set the Relationship instance ID
+[string]$RelationshipInstanceID = "SCOM.GatewayMaintenanceMode." + $GWNetBIOSName + "Computers.Group.Contains.Windows.Computers"
+
+#Set the group instance we will discover members of
+$GroupInstance = $DiscoveryData.CreateClassInstance("$MPElement[Name='SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group']$")
+
+# Loop through each Name and add a group membership containment relationship to the discovery data
+$i=0;
+FOREACH ($Agent in $Agents)
+{
+  [string]$AgentName = $Agent.Name
+  $i = $i+1
+  $ServerInstance = $DiscoveryData.CreateClassInstance("$MPElement[Name='Windows!Microsoft.Windows.Computer']$")
+  $ServerInstance.AddProperty("$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", $AgentName) 
+  $RelationshipInstance = $DiscoveryData.CreateRelationshipInstance("$MPElement[Name='SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group.Contains.Windows.Computers']$")
+  $RelationshipInstance.Source = $GroupInstance
+  $RelationshipInstance.Target = $ServerInstance
+  $DiscoveryData.AddInstance($RelationshipInstance)   
+}
+
+IF ($i -ge 1)
+{
+  $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nSuccessfully found ($i) Computers to add to the group: ($GroupInstanceID).")
+}
+ELSE
+{
+  $momapi.LogScriptEvent($ScriptName,$EventID,0,"`nERROR: No computers were found for Gateway: ($GWNetBIOSName). `nTerminating script.")
+  EXIT
+}
+
+# Return Discovery Items Normally           
+ $DiscoveryData
+
+# Return Discovery Bag to the command line for testing (does not work from ISE)
+# $momapi.Return($DiscoveryData)
+#=================================================================================
+# End MAIN script section
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script Ending. `n Script Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+#End Script
+					</ScriptBody>
+          <Parameters>
+            <Parameter>
+              <Name>sourceId</Name>
+              <Value>$MPElement$</Value>
+            </Parameter>
+            <Parameter>
+              <Name>managedEntityId</Name>
+              <Value>$Target/Id$</Value>
+            </Parameter>
+            <Parameter>
+              <Name>GroupDisplayName</Name>
+              <Value>$Target/Property[Type="System!System.Entity"]/DisplayName$</Value>
+            </Parameter>
+          </Parameters>
+          <TimeoutSeconds>300</TimeoutSeconds>
+        </DataSource>
+      </Discovery>
+    </Discoveries>
+    <Monitors>
+      <UnitMonitor ID="SCOM.GatewayMaintenanceMode.Ping.Monitor" Accessibility="Public" Enabled="true" Target="SC!Microsoft.SystemCenter.GatewayManagementServerWatcher" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="SCOM.GatewayMaintenanceMode.Ping.Monitor.MonitorType" ConfirmDelivery="true">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="SCOM.GatewayMaintenanceMode.Ping.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>MatchMonitorHealth</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Property[@Name='Result']$</AlertParameter1>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="GoodCondition" MonitorTypeStateID="GoodCondition" HealthState="Success" />
+          <OperationalState ID="BadCondition" MonitorTypeStateID="BadCondition" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>30</IntervalSeconds>
+          <SyncTime />
+          <ComputerName>$Target/Property[Type="SC!Microsoft.SystemCenter.HealthServiceWatcher"]/HealthServiceName$</ComputerName>
+          <TimeoutSeconds>30</TimeoutSeconds>
+          <MatchCount>1</MatchCount>
+        </Configuration>
+      </UnitMonitor>
+    </Monitors>
+    <Recoveries>
+      <Recovery ID="SCOM.GatewayMaintenanceMode.Ping.Monitor.Start.Recovery" Accessibility="Public" Enabled="true" Target="SC!Microsoft.SystemCenter.GatewayManagementServerWatcher" Monitor="SCOM.GatewayMaintenanceMode.Ping.Monitor" ResetMonitor="false" ExecuteOnState="Error" Remotable="true" Timeout="300">
+        <Category>Custom</Category>
+        <WriteAction ID="PSWA" TypeID="SCOM.GatewayMaintenanceMode.Ping.Monitor.Recovery.WA">
+          <ComputerName>$Data/StateChange/DataItem/Context/DataItem/Property[@Name='ComputerName']$</ComputerName>
+          <Action>Start</Action>
+          <TimeoutSeconds>240</TimeoutSeconds>
+        </WriteAction>
+      </Recovery>
+      <Recovery ID="SCOM.GatewayMaintenanceMode.Ping.Monitor.Stop.Recovery" Accessibility="Public" Enabled="true" Target="SC!Microsoft.SystemCenter.GatewayManagementServerWatcher" Monitor="SCOM.GatewayMaintenanceMode.Ping.Monitor" ResetMonitor="false" ExecuteOnState="Success" Remotable="true" Timeout="300">
+        <Category>Custom</Category>
+        <WriteAction ID="PSWA" TypeID="SCOM.GatewayMaintenanceMode.Ping.Monitor.Recovery.WA">
+          <ComputerName>$Data/StateChange/DataItem/Context/DataItem/Property[@Name='ComputerName']$</ComputerName>
+          <Action>Stop</Action>
+          <TimeoutSeconds>240</TimeoutSeconds>
+        </WriteAction>
+      </Recovery>
+    </Recoveries>
+  </Monitoring>
+  <Presentation>
+    <Views>
+      <View ID="SCOM.GatewayMaintenanceMode.Alert.View" Accessibility="Internal" Enabled="true" Target="SC!Microsoft.SystemCenter.GatewayManagementServerWatcher" TypeID="SC!Microsoft.SystemCenter.AlertViewType" Visible="true">
+        <Category>Custom</Category>
+        <Criteria>
+          <ResolutionState>
+            <StateRange Operator="NotEquals">255</StateRange>
+          </ResolutionState>
+        </Criteria>
+      </View>
+      <View ID="SCOM.GatewayMaintenanceMode.State.View" Accessibility="Internal" Enabled="true" Target="SC!Microsoft.SystemCenter.GatewayManagementServerWatcher" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Custom</Category>
+        <Criteria />
+      </View>
+      <View ID="SCOM.GatewayMaintenanceMode.Group1.View" Accessibility="Internal" Enabled="true" Target="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group-*-a52a104b-f44f-e319-5f17-6891260c221e-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Computer</Name>
+            <Id>Microsoft.Windows.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server</Name>
+            <Id>Microsoft.Windows.Server.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="7" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Client</Name>
+            <Id>Microsoft.Windows.Client.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="8" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>System Center Managed Windows Computer</Name>
+            <Id>Microsoft.SystemCenter.ManagedComputer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="9" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Nano Server Agent</Name>
+            <Id>Microsoft.SystemCenter.Agent.Nano</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="10" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Microsoft SystemCenter Windows Computer Telemetry</Name>
+            <Id>Microsoft.SystemCenter.WindowsComputer.Telemetry</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="11" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Windows 2016 Server Computer</Name>
+            <Id>LW.Microsoft.Windows.Server.6.4.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="12" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>System Center Managed Computer (Client OS)</Name>
+            <Id>Microsoft.SystemCenter.ManagedComputerClient</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="13" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Computer</Name>
+            <Id>Microsoft.Windows.Server.6.2.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="14" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>System Center Managed Computer (Server OS)</Name>
+            <Id>Microsoft.SystemCenter.ManagedComputerServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="15" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Server BaseOS category</Name>
+            <Id>LW.Base.Microsoft.Windows.Server.BaseOS.Category</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="16" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Cluster Node</Name>
+            <Id>Microsoft.Windows.Cluster.Node</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="17" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Computer</Name>
+            <Id>Microsoft.Windows.Client.Win10.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="18" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Computer</Name>
+            <Id>Microsoft.Windows.Server.10.0.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="19" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Domain Controller</Name>
+            <Id>Microsoft.Windows.Server.DC.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="20" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Virtual Server</Name>
+            <Id>Microsoft.Windows.Cluster.VirtualServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="21" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Computer</Name>
+            <Id>Microsoft.Windows.Server.2008.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="22" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 Computer (Nano)</Name>
+            <Id>Microsoft.Windows.Server.10.0.Nano.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="23" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Core Computer</Name>
+            <Id>Microsoft.Windows.Server.2008.Core.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="24" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 R2 Computer</Name>
+            <Id>Microsoft.Windows.Server.2008.R2.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="25" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Full Computer</Name>
+            <Id>Microsoft.Windows.Server.6.2.Full.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="26" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 Computer (Full)</Name>
+            <Id>Microsoft.Windows.Server.10.0.Full.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="27" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and 1709+ Cluster Node</Name>
+            <Id>Microsoft.Windows.10.0.Cluster.Node</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="28" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Computer (Core)</Name>
+            <Id>Microsoft.Windows.Server.10.0.Core.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="29" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Windows 2012 Server Computer</Name>
+            <Id>LW.Microsoft.BaseOS.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="30" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Aggregate Computer</Name>
+            <Id>Microsoft.Windows.Client.Win10.Aggregate.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="31" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Cluster Node</Name>
+            <Id>Microsoft.Windows.6.2.Cluster.Node</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="32" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Full Computer</Name>
+            <Id>Microsoft.Windows.Server.2008.Full.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="33" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Core Computer</Name>
+            <Id>Microsoft.Windows.Server.6.2.Core.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="34" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Windows 2016 Server Computer</Name>
+            <Id>LW.Microsoft.BaseOS.2016</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="35" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Windows 2012R2 Server Computer</Name>
+            <Id>LW.Microsoft.BaseOS.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="36" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Computer</Name>
+            <Id>Microsoft.Windows.Server.2012.R2.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="37" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Windows 2008R2 Server Computer</Name>
+            <Id>LW.Microsoft.BaseOS.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="38" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Core Computer</Name>
+            <Id>Microsoft.Windows.Server.2012.R2.Core.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="39" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 R2 Core Computer</Name>
+            <Id>Microsoft.Windows.Server.2008.R2.Core.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="40" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 R2 Full Computer</Name>
+            <Id>Microsoft.Windows.Server.2008.R2.Full.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="41" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Full Computer</Name>
+            <Id>Microsoft.Windows.Server.2012.R2.Full.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="42" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Cluster Node</Name>
+            <Id>Microsoft.Windows.6.3.Cluster.Node</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target />
+      </View>
+      <View ID="SCOM.GatewayMaintenanceMode.Group1.Computers.View" Accessibility="Internal" Enabled="true" Target="Windows!Microsoft.Windows.Computer" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>Microsoft.Windows.Computer-*-ea99500d-8d52-fc52-b5a5-10dcd1e9d2bd-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Principal Name</Name>
+            <Id>Microsoft.Windows.Computer/PrincipalName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>DNS Name</Name>
+            <Id>Microsoft.Windows.Computer/DNSName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="7" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>NetBIOS Computer Name</Name>
+            <Id>Microsoft.Windows.Computer/NetbiosComputerName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="8" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>NetBIOS Domain Name</Name>
+            <Id>Microsoft.Windows.Computer/NetbiosDomainName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="9" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>IP Address</Name>
+            <Id>Microsoft.Windows.Computer/IPAddress</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="10" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Network Name</Name>
+            <Id>Microsoft.Windows.Computer/NetworkName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="11" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Active Directory SID</Name>
+            <Id>Microsoft.Windows.Computer/ActiveDirectoryObjectSid</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="12" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
+            <Name>Virtual Machine</Name>
+            <Id>Microsoft.Windows.Computer/IsVirtualMachine</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="13" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>DNS Domain Name</Name>
+            <Id>Microsoft.Windows.Computer/DomainDnsName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="14" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Organizational Unit</Name>
+            <Id>Microsoft.Windows.Computer/OrganizationalUnit</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="15" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>DNS Forest Name</Name>
+            <Id>Microsoft.Windows.Computer/ForestDnsName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="16" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Active Directory Site</Name>
+            <Id>Microsoft.Windows.Computer/ActiveDirectorySite</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="17" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Logical Processors</Name>
+            <Id>Microsoft.Windows.Computer/LogicalProcessors</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="18" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Physical Processors</Name>
+            <Id>Microsoft.Windows.Computer/PhysicalProcessors</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="19" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Host Server Name</Name>
+            <Id>Microsoft.Windows.Computer/HostServerName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="20" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Virtual Machine Name</Name>
+            <Id>Microsoft.Windows.Computer/VirtualMachineName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="21" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Offset In Minutes From Greenwich Time</Name>
+            <Id>Microsoft.Windows.Computer/OffsetInMinuteFromGreenwichTime</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="22" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="false" Visible="false" SortOrder="Ascending">
+            <Name>Last Inventory Date</Name>
+            <Id>Microsoft.Windows.Computer/LastInventoryDate</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="23" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Exchange 2013 Server</Name>
+            <Id>Microsoft.Exchange.15.Server</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="24" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Active Directory Domain Member Perspective</Name>
+            <Id>Microsoft.Windows.Server.AD.DomainMemberPerspective</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="25" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Computer Network Adapter</Name>
+            <Id>Microsoft.Windows.ComputerNetworkAdapter</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="26" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Server running Hyper-V</Name>
+            <Id>Microsoft.Windows.HyperV.ServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="27" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows DNS Server</Name>
+            <Id>Microsoft.Windows.DNSServer.2016.Server</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="28" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Cluster Node Role</Name>
+            <Id>Microsoft.Windows.Cluster.NodeRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="29" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>IIS 8 Server Role</Name>
+            <Id>Microsoft.Windows.InternetInformationServices.6.2.ServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="30" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Read-Only Active Directory Domain Controller Computer</Name>
+            <Id>Microsoft.Windows.Server.AD.ReadOnlyDC.Computer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="31" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Active Directory Domain Controller Server 2016 Computer Role</Name>
+            <Id>Microsoft.Windows.Server.2016.AD.DomainControllerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="32" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Certificate Service (2008)</Name>
+            <Id>Microsoft.Windows.CertificateServices.CARole.2008</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="33" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Server running Hyper-V 2016 and 1709+</Name>
+            <Id>Microsoft.Windows.HyperV.Discovery.ServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="34" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>IIS 10 Server Role</Name>
+            <Id>Microsoft.Windows.InternetInformationServices.10.0.ServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="35" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 Certificate Service</Name>
+            <Id>Microsoft.Windows.CertificateServices.CARole.2016</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="36" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Active Directory DC and Global Catalog Server Role (Microsoft Windows Server 2016)</Name>
+            <Id>Microsoft.Windows.Server.2016.AD.GlobalCatalogServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="37" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Health Service</Name>
+            <Id>Microsoft.SystemCenter.HealthService</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="38" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>SCOM Management Base Class</Name>
+            <Id>SCOM.Management.Class</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="39" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Federation Server Seed</Name>
+            <Id>Microsoft.ActiveDirectoryFederationServices.2016.FederationServerSeed</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="40" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Services Instance</Name>
+            <Id>Microsoft.Windows.Server.LDS.Service</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="41" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server Backup Class</Name>
+            <Id>SCOM.WindowsServerBackup.Class</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="42" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Cluster Service</Name>
+            <Id>Microsoft.Windows.Cluster.Service</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="43" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Microsoft 365 Watcher Node</Name>
+            <Id>Microsoft.SystemCenter.M365.WatcherNodeApplication</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="44" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Microsoft OperationsManager Products</Name>
+            <Id>Microsoft.SystemCenter.Installed.OMProducts</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="45" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Notification Server</Name>
+            <Id>Microsoft.SystemCenter.NotificationServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="46" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Microsoft OperationsManager Database</Name>
+            <Id>Microsoft.SystemCenter.Installed.Database</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="47" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Management Servers</Name>
+            <Id>Microsoft.SystemCenter.Installed.OMProducts.OM</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="48" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Reporting Servers</Name>
+            <Id>Microsoft.SystemCenter.Installed.OMProducts.Reporting</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="49" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Web Servers</Name>
+            <Id>Microsoft.SystemCenter.Installed.OMProducts.WebConsole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="50" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Gateway Servers</Name>
+            <Id>Microsoft.SystemCenter.Installed.OMProducts.Gateway</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="51" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Management Server</Name>
+            <Id>Microsoft.SystemCenter.ManagementServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="52" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>SCOM Agent Management Class</Name>
+            <Id>SCOM.Management.Agent.Class</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="53" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Agents</Name>
+            <Id>Microsoft.SystemCenter.Installed.OMProducts.Agent</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="54" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Audit Collection Servers</Name>
+            <Id>Microsoft.SystemCenter.Installed.OMProducts.ACS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="55" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>SCOM Server Management Class</Name>
+            <Id>SCOM.Management.Server.Class</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="56" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Cluster Service (For Virtual Server)</Name>
+            <Id>Microsoft.Windows.Cluster.Service.ForVirtualServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="57" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Operations Consoles</Name>
+            <Id>Microsoft.SystemCenter.Installed.OMProducts.Console</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="58" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Agent</Name>
+            <Id>Microsoft.SystemCenter.Agent</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="59" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Monitoring Cluster Service</Name>
+            <Id>Microsoft.Windows.Cluster.Monitoring.Service</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="60" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Data Warehouse Connection Server</Name>
+            <Id>Microsoft.SystemCenter.DataWarehouseConnectorServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="61" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Gateway</Name>
+            <Id>Microsoft.SystemCenter.GatewayManagementServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="62" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Management Server Agent</Name>
+            <Id>Microsoft.SystemCenter.Agent.ManagementServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="63" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Collection Server</Name>
+            <Id>Microsoft.SystemCenter.CollectionManagementServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="64" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Microsoft.SystemCenter.DataWarehouseSynchronizationServer</Name>
+            <Id>Microsoft.SystemCenter.DataWarehouseSynchronizationServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="65" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and 1709+ Monitoring Cluster Service</Name>
+            <Id>Microsoft.Windows.10.0.Cluster.Monitoring.Service</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="66" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Notification Subscription Server</Name>
+            <Id>Microsoft.SystemCenter.NotificationSubscriptionServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="67" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Monitoring Cluster Service</Name>
+            <Id>Microsoft.Windows.6.2.Cluster.Monitoring.Service</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="68" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Monitoring Cluster Service</Name>
+            <Id>Microsoft.Windows.6.3.Cluster.Monitoring.Service</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="69" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Site Management Server</Name>
+            <Id>Microsoft.SystemCenter.SiteManagementServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="70" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Management Configuration Service</Name>
+            <Id>Microsoft.SystemCenter.ManagementConfigurationService</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="71" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Root Management Server Emulator</Name>
+            <Id>Microsoft.SystemCenter.RootManagementServer</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="72" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Data Access Service</Name>
+            <Id>Microsoft.SystemCenter.ManagementDataAccessService</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="73" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Aggregate Physical DIMM</Name>
+            <Id>Microsoft.Windows.Client.Win10.Aggregate.PhysicalDIMM</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="74" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Physical Disk</Name>
+            <Id>Microsoft.Windows.Server.6.2.PhysicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="75" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Physical Disk</Name>
+            <Id>Microsoft.Windows.Server.10.0.PhysicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="76" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Network Adapter</Name>
+            <Id>Microsoft.Windows.Server.2008.NetworkAdapter</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="77" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Logical Disk</Name>
+            <Id>Microsoft.Windows.Server.2008.LogicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="78" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Disk Partition</Name>
+            <Id>Microsoft.Windows.Server.6.2.DiskPartition</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="79" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Disk Partition</Name>
+            <Id>Microsoft.Windows.Server.10.0.DiskPartition</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="80" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Physical Disk</Name>
+            <Id>Microsoft.Windows.Server.2008.PhysicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="81" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Processor</Name>
+            <Id>Microsoft.Windows.Server.10.0.Processor</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="82" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Processor</Name>
+            <Id>Microsoft.Windows.Server.6.2.Processor</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="83" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Processor</Name>
+            <Id>Microsoft.Windows.Server.2008.Processor</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="84" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Logical Disk</Name>
+            <Id>Microsoft.Windows.Server.10.0.LogicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="85" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Physical Disk</Name>
+            <Id>Microsoft.Windows.Client.Win10.PhysicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="86" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Network Adapter</Name>
+            <Id>Microsoft.Windows.Server.10.0.NetworkAdapter</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="87" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Logical Disk</Name>
+            <Id>Microsoft.Windows.Server.6.2.LogicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="88" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Network Adapter</Name>
+            <Id>Microsoft.Windows.Client.Win10.NetworkAdapter</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="89" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Processor</Name>
+            <Id>Microsoft.Windows.Client.Win10.Processor</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="90" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Disk Partition</Name>
+            <Id>Microsoft.Windows.Client.Win10.DiskPartition</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="91" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Disk Partition</Name>
+            <Id>Microsoft.Windows.Server.2008.DiskPartition</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="92" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Network Adapter</Name>
+            <Id>Microsoft.Windows.Server.6.2.NetworkAdapter</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="93" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Logical Disk</Name>
+            <Id>Microsoft.Windows.Client.Win10.LogicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="94" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and 1709+ Cluster Network Interface</Name>
+            <Id>Microsoft.Windows.10.0.Cluster.NetworkInterface</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="95" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Cluster Network Interface</Name>
+            <Id>Microsoft.Windows.6.3.Cluster.NetworkInterface</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="96" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Cluster Network Interface</Name>
+            <Id>Microsoft.Windows.6.2.Cluster.NetworkInterface</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="97" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Aggregate Logical Disk</Name>
+            <Id>Microsoft.Windows.Client.Win10.Aggregate.LogicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="98" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Aggregate Physical Disk</Name>
+            <Id>Microsoft.Windows.Client.Win10.Aggregate.PhysicalDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="99" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Operating System</Name>
+            <Id>Microsoft.Windows.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="100" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Client Operating System</Name>
+            <Id>Microsoft.Windows.Client.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="101" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server Operating System</Name>
+            <Id>Microsoft.Windows.Server.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="102" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Operating System</Name>
+            <Id>Microsoft.Windows.Server.6.2.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="103" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows 10 Operating System</Name>
+            <Id>Microsoft.Windows.Client.Win10.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="104" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Operating System</Name>
+            <Id>Microsoft.Windows.Server.2008.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="105" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Operating System</Name>
+            <Id>Microsoft.Windows.Server.10.0.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="106" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 Operating System (Nano)</Name>
+            <Id>Microsoft.Windows.Server.10.0.Nano.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="107" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Core Operating System</Name>
+            <Id>Microsoft.Windows.Server.2008.Core.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="108" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 R2 Operating System</Name>
+            <Id>Microsoft.Windows.Server.2008.R2.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="109" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 and above Operating System (Core)</Name>
+            <Id>Microsoft.Windows.Server.10.0.Core.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="110" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Operating System</Name>
+            <Id>Microsoft.Windows.Server.2012.R2.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="111" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Core Operating System</Name>
+            <Id>Microsoft.Windows.Server.6.2.Core.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="112" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2016 Operating System (Full)</Name>
+            <Id>Microsoft.Windows.Server.10.0.Full.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="113" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 Full Operating System</Name>
+            <Id>Microsoft.Windows.Server.6.2.Full.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="114" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 Full Operating System</Name>
+            <Id>Microsoft.Windows.Server.2008.Full.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="115" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 R2 Core Operating System</Name>
+            <Id>Microsoft.Windows.Server.2008.R2.Core.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="116" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2008 R2 Full Operating System</Name>
+            <Id>Microsoft.Windows.Server.2008.R2.Full.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="117" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Core Operating System</Name>
+            <Id>Microsoft.Windows.Server.2012.R2.Core.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="118" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Server 2012 R2 Full Operating System</Name>
+            <Id>Microsoft.Windows.Server.2012.R2.Full.OperatingSystem</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="119" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>MSSQL on Windows: Monitoring Pool Alert Collection</Name>
+            <Id>Microsoft.SQLServer.Windows.MonitoringPoolAlertCollection</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="120" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>MSSQL on Windows: DB Engine</Name>
+            <Id>Microsoft.SQLServer.Windows.DBEngine</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="121" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>MSSQL on Windows: Local DB Engine</Name>
+            <Id>Microsoft.SQLServer.Windows.LocalDBEngine</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="122" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>MSSQL on Windows: Local Clustered DB Engine Seed</Name>
+            <Id>Microsoft.SQLServer.Windows.LocalClusteredDBEngineDiscoverySeed</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="123" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>MSSQL on Windows: Local Discovery Seed</Name>
+            <Id>Microsoft.SQLServer.Windows.LocalDiscoverySeed</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="124" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Cluster Disk</Name>
+            <Id>Microsoft.Windows.Server.ClusterDisksMonitoring.ClusterDisk</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="125" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>[Nano Server] Cluster Disk</Name>
+            <Id>Microsoft.Windows.Server.ClusterDisksMonitoring.ClusterDisk.NewOS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="126" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>[Deprecated] Cluster Disk Volume</Name>
+            <Id>Microsoft.Windows.Server.ClusterDisksMonitoring.ClusterDisk.LegacyOS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="127" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Cluster (disk monitoring)</Name>
+            <Id>Microsoft.Windows.Server.ClusterSharedVolumeMonitoring.Cluster</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="128" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>[Nano Server] Windows Cluster disk monitoring seed</Name>
+            <Id>Microsoft.Windows.Server.ClusterSharedVolumeMonitoring.Cluster.NewOS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="129" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>[Deprecated] Windows Cluster Disk Volume monitoring seed</Name>
+            <Id>Microsoft.Windows.Server.ClusterSharedVolumeMonitoring.Cluster.LegacyOS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="130" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Cluster Shared Volume</Name>
+            <Id>Microsoft.Windows.Server.ClusterSharedVolumeMonitoring.ClusterSharedVolume</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="131" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>[Nano Server] Cluster Shared Volume</Name>
+            <Id>Microsoft.Windows.Server.ClusterSharedVolumeMonitoring.ClusterSharedVolume.NewOS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="132" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>[Deprecated] Cluster Shared Volume  Partition</Name>
+            <Id>Microsoft.Windows.Server.ClusterSharedVolumeMonitoring.ClusterSharedVolume.LegacyOS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="133" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Microsoft Audit Collection Services Collector</Name>
+            <Id>Microsoft.SystemCenter.ACS.Collector</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="134" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Microsoft Audit Collection Services Forwarder</Name>
+            <Id>Microsoft.SystemCenter.ACS.Forwarder</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="135" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>ACS Forwarder</Name>
+            <Id>Microsoft.SystemCenter.ACS.Addendum.Forwarder</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="136" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Cluster Node Hosted Cluster Resource Group</Name>
+            <Id>Microsoft.Windows.Cluster.HostedGroup</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="137" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Operations Manager Operational Database Watcher</Name>
+            <Id>Microsoft.SystemCenter.OpsMgrDBWatcher</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="138" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Operations Manager Data Warehouse Watcher</Name>
+            <Id>Microsoft.SystemCenter.OpsMgrDWWatcher</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="139" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Report Console Watcher</Name>
+            <Id>Microsoft.SystemCenter.ReportConsoleWatcher</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="140" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Web Console Watcher</Name>
+            <Id>Microsoft.SystemCenter.WebConsoleWatcher</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="141" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Operations Manager Enterprise License</Name>
+            <Id>Microsoft.SystemCenter.License.Enterprise</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="142" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Operations Manager Standard License</Name>
+            <Id>Microsoft.SystemCenter.License.Standard</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="143" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Application Partition Instance</Name>
+            <Id>Microsoft.Windows.Server.LDS.ApplicationPartitionInstance</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="144" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Client Perspective</Name>
+            <Id>Microsoft.Windows.Server.LDS.ClientPerspective</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="145" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Services Instance Role Seed</Name>
+            <Id>Microsoft.Windows.Server.LDS.InstanceRoleSeed</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="146" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>MSSQL on Windows Integration Services: Local Instance</Name>
+            <Id>Microsoft.SQLServer.IS.Windows.LocalInstance</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="147" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>MSSQL on Windows Integration Services: Local Seed</Name>
+            <Id>Microsoft.SQLServer.IS.Windows.LocalSeed</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="148" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Remote Access role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.Remote.Access.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="149" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SharePoint 2013 (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.SharePoint.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="150" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADFS Server role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Federation.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="151" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Remote Desktop Services role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.Remote.Desktop.Services.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="152" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DHCP (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.DHCP</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="153" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Lightweight 2016 Hyper-V</Name>
+            <Id>LW.Microsoft.HyperV.2016</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="154" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Remote Access role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Remote.Access.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="155" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight CRM 2013</Name>
+            <Id>LW.Microsoft.Windows.CRM.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="156" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Remote Desktop Services role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Remote.Desktop.Services.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="157" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADDS Server Role 2016</Name>
+            <Id>LW.Microsoft.Windows.Server.10.0.AD.GlobalCatalogServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="158" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight F5 BIG-IP (by Comtrade)</Name>
+            <Id>LW.Microsoft.3rdParty.Comtrade.F5BIGIP</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="159" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Server Backup role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.Backup.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="160" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Exchange Server 2013</Name>
+            <Id>LW.Microsoft.Windows.Exchange.Server.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="161" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Distributed Transaction Coordinator 2016</Name>
+            <Id>LW.Microsoft.Windows.MSDTC.2016</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="162" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Swift (by OpsLogix)</Name>
+            <Id>LW.Microsoft.3rdParty.OpsLogix.Swift</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="163" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DHCP Server role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.DHCP.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="164" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADFS Server role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Federation.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="165" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight System Center Configuration Manager 2012</Name>
+            <Id>LW.Microsoft.Windows.SCCM.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="166" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADCS Server role 2016</Name>
+            <Id>LW.Microsoft.Windows.CertificateServices.CARole.6.4</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="167" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Lightweight JEE Tomcat 8plus</Name>
+            <Id>LW.Microsoft.JEE.Tomcat.8plus.Windows.Configuration</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="168" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Team Foundation Server 2010</Name>
+            <Id>LW.Microsoft.Windows.TFS.2010</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="169" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Print Services role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Print.Services.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="170" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Advanced Threat Analytics</Name>
+            <Id>LW.Microsoft.AdvancedThreatAnalytics</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="171" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight NAV 2013 R2</Name>
+            <Id>LW.Microsoft.Windows.NAV.2013R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="172" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADRMS Server role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Rights.Management.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="173" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Hyper-V role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.HyperV.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="174" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Server Cluster role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Cluster.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="175" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight RightFax (by Infront)</Name>
+            <Id>LW.Microsoft.3rdParty.Infront.RightFax</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="176" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Oracle (by OpsLogix)</Name>
+            <Id>LW.Microsoft.3rdParty.OpsLogix.Oracle</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="177" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Nutanix VM (by Comtrade)</Name>
+            <Id>LW.Microsoft.3rdParty.Comtrade.NutanixVM</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="178" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight CRM 2015</Name>
+            <Id>LW.Microsoft.Windows.CRM.2015</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="179" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Essentials Services role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Essentials.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="180" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Hyper-V role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.HyperV.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="181" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Service Manager 2012</Name>
+            <Id>LW.Microsoft.Windows.ServiceManager.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="182" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight BizTalk server 2013R2</Name>
+            <Id>LW.Microsoft.Windows.Biztalk.2013R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="183" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Oracle (by NiCE)</Name>
+            <Id>LW.Microsoft.3rdParty.NiCE.Oracle</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="184" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DB2 (by NiCE)</Name>
+            <Id>LW.Microsoft.3rdParty.NiCE.DB2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="185" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Hyper-V role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.HyperV.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="186" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SC Orchestrator (by Infront)</Name>
+            <Id>LW.Microsoft.3rdParty.Infront.SCOrchestrator.Core</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="187" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Windows Server Backup</Name>
+            <Id>LW.Microsoft.Windows.Server.Backup</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="188" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Print Services role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.Print.Services.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="189" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADCS Server role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Certificate.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="190" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Active Directory (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.ActiveDirectory</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="191" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server role 2016</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2016</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="192" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SharePoint Foundation Server 2010</Name>
+            <Id>LW.Microsoft.Windows.SharePoint.Foundation.Server.2010</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="193" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server role 2017</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2017</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="194" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight BizTalk Server 2009</Name>
+            <Id>LW.Microsoft.Windows.Biztalk.2009</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="195" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight File Services role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.File.Services.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="196" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight IBM Domino (by NiCE)</Name>
+            <Id>LW.Microsoft.3rdParty.NiCE.IBM.Domino</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="197" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2012 Replication Services</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2012.Replication</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="198" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADRMS Server role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Rights.Management.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="199" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DNS Server role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.DNS.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="200" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight File Services role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.File.Services.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="201" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Lync Server 2013 (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.Lync.Server.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="202" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADCS Server role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Certificate.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="203" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Lightweight JEE Wildfly 8plus</Name>
+            <Id>LW.Microsoft.JEE.Wildfly.8plus.Windows.Configuration</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="204" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Dynamics AX 2012</Name>
+            <Id>LW.Microsoft.Windows.Dynamics.AX.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="205" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Network Load Balancer role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.NLB.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="206" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight AD Lightweight Directory role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Lightweight.Directory.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="207" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Orchestrator 2012 R2</Name>
+            <Id>LW.Microsoft.Windows.Orchestrator.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="208" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Skype For Business 2015 (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.SkypeForBusiness.2015</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="209" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Lync Server 2013</Name>
+            <Id>LW.Microsoft.Lync.Server.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="210" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Branch Cache role 2016</Name>
+            <Id>LW.Microsoft.Windows.Server.Branch.Cache.2016</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="211" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Dynamics AX Retail 2012 R3</Name>
+            <Id>LW.Microsoft.Windows.Dynamics.AX.Retail.2012R3</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="212" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Print Services role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Print.Services.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="213" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADRMS Server role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Rights.Management.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="214" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2014 Replication Services</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2014.Replication</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="215" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Network Load Balancer role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.NLB.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="216" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight NLB Server Role 2016</Name>
+            <Id>LW.Microsoft.Windows.NetworkLoadBalancing.6.4.ServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="217" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight McAfee (by Infront)</Name>
+            <Id>LW.Microsoft.3rdParty.Infront.McAfee</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="218" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Exchange 2010 (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.Exchange.2010</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="219" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Distributed Transaction Coordinator 2012 R2</Name>
+            <Id>LW.Microsoft.Windows.MSDTC.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="220" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Isilon (by Infront)</Name>
+            <Id>LW.Microsoft.3rdParty.Infront.Isilon</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="221" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Essentials Services role 2016</Name>
+            <Id>LW.Microsoft.Windows.Essentials.2016</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="222" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Lightweight JEE WebLogic 12plus</Name>
+            <Id>LW.Microsoft.JEE.WebLogic.12plus.Windows.Configuration</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="223" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Dynamics AX 2009</Name>
+            <Id>LW.Microsoft.Windows.Dynamics.AX.2009</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="224" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Windows Defender Services role 2016</Name>
+            <Id>LW.Microsoft.Windows.Defender.Role.2016</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="225" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2016 Replication Services</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2016.Replication</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="226" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight 2016 Virtual Machine Manager</Name>
+            <Id>LW.Microsoft.2016.VirtualMachineManager</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="227" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Message Queuing role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.Queuing.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="228" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2017 Replication Services</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2017.Replication</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="229" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2005</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2005</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="230" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADCS Server role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Certificate.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="231" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Team Foundation Server 2013</Name>
+            <Id>LW.Microsoft.Windows.TFS.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="232" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight System Center App Controler 2012 R2</Name>
+            <Id>LW.Microsoft.Windows.AppController.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="233" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight VMware (by OpsLogix)</Name>
+            <Id>LW.Microsoft.3rdParty.OpsLogix.VMware</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="234" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DNS Server role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.DNS.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="235" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Network Load Balancer role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.NLB.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="236" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Host Integration Server 2013</Name>
+            <Id>LW.Microsoft.Windows.Host.Integration.Server.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="237" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Host Integration Server 2010</Name>
+            <Id>LW.Microsoft.Windows.Host.Integration.Server.2010</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="238" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight CHS Suite (Calcomp)</Name>
+            <Id>LW.Microsoft.3rdParty.Calcomp.CHS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="239" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Message Queuing role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Queuing.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="240" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight CRM 2011</Name>
+            <Id>LW.Microsoft.Windows.CRM.2011</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="241" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Active Directory Server role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.ActiveDirectory.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="242" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2014 Reporting Services (Native Mode)</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2014.ReportingServices.NativeMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="243" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Branch Cache role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Branch.Cache.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="244" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Server Cluster role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.Cluster.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="245" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2012 Analysis Services</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2012.AnalysisServices</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="246" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Active Directory Server role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.ActiveDirectory.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="247" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight AD Lightweight Directory role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Lightweight.Directory.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="248" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Print Server Role 2016</Name>
+            <Id>LW.Microsoft.Windows.Server.6.4.PrintServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="249" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SDN Monitoring</Name>
+            <Id>LW.Microsoft.SDNMonitoring</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="250" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Web Application Proxy Server role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.WebApplicationProxy.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="251" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Failover Clustering Server Role 2016</Name>
+            <Id>LW.Microsoft.Windows.6.4.Cluster.Node</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="252" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DHCP Server Role 2016</Name>
+            <Id>LW.Microsoft.Windows.DHCPServer.6.4.Server</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="253" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Update Services role 2012</Name>
+            <Id>LW.Microsoft.Windows.Update.Services.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="254" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SharePoint Server 2013</Name>
+            <Id>LW.Microsoft.Windows.SharePoint.Server.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="255" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DHCP Server role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.DHCP.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="256" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Exchange 2013 (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.Exchange.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="257" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight NAV 2013</Name>
+            <Id>LW.Microsoft.Windows.NAV.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="258" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Dynamics CRM (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.Dynamics.CRM</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="259" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight IBM MQ (by OpsLogix)</Name>
+            <Id>LW.Microsoft.3rdParty.OpsLogix.IBMMQ</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="260" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Server IIS role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.IIS.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="261" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight BizTalk Server 2010</Name>
+            <Id>LW.Microsoft.Windows.Biztalk.2010</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="262" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Branch Cache role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.Branch.Cache.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="263" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Update Services role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Update.Services.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="264" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SharePoint Foundation Server 2013</Name>
+            <Id>LW.Microsoft.Windows.SharePoint.Foundation.Server.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="265" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Deployment Services role 2012</Name>
+            <Id>LW.Microsoft.Windows.Deployment.Services.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="266" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DNS (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.DNS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="267" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DHCP Server role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.DHCP.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="268" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight BizTalk Server 2006</Name>
+            <Id>LW.Microsoft.Windows.Biztalk.2006</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="269" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server role 2008</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2008</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="270" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight File Services role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.File.Services.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="271" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADFS Server Role 2016</Name>
+            <Id>LW.Microsoft.ActiveDirectoryFederationServices.10.0.FederationServerSeed</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="272" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Team Foundation Server 2012</Name>
+            <Id>LW.Microsoft.Windows.TFS.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="273" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Lightweight JEE JBoss 7</Name>
+            <Id>LW.Microsoft.JEE.JBoss.7.Windows.Configuration</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="274" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Remote Desktop Services (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.RemoteDesktopServices</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="275" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Team Foundation Server 2015</Name>
+            <Id>LW.Microsoft.Windows.TFS.2015</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="276" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Lightweight Power Management 2012</Name>
+            <Id>LW.Microsoft.Power.Management.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="277" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADFS Server role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.AD.Federation.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="278" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2014 Analysis Services</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2014.AnalysisServices</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="279" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server role 2014</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2014</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="280" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Branch Cache role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Branch.Cache.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="281" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Skype For Business 2015</Name>
+            <Id>LW.Microsoft.SkypeForBusiness.2015</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="282" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight ADRMS Server Role 2016</Name>
+            <Id>LW.Microsoft.ADRMS.6.4.Server</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="283" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Windows Core OS Server Computer</Name>
+            <Id>LW.Microsoft.Core.OS</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="284" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight File and iSCSI services Server Role 2016</Name>
+            <Id>LW.Microsoft.Windows.FileServices.Service.iSCSITarget.6.3</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="285" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Service Provider Foundation (SPF) 2012R2</Name>
+            <Id>LW.Microsoft.Windows.SPF.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="286" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Message Queuing role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Queuing.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="287" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Deployment Services role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Deployment.Services.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="288" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight IIS Server Role 2016</Name>
+            <Id>LW.Microsoft.Windows.InternetInformationServices.6.4.ServerRole</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="289" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight System Center Configuration Manager 2012 (by Savision)</Name>
+            <Id>LW.Microsoft.3rdParty.Savision.SCCM.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="290" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Remote Desktop Services 2016</Name>
+            <Id>LW.Microsoft.2016.RemoteDesktopServices</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="291" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Service Management Automation 2012 R2</Name>
+            <Id>LW.Microsoft.Windows.SMA.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="292" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2016 Reporting Services (Native Mode)</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2016.ReportingServices.NativeMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="293" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2012 Reporting Services (Native Mode)</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2012.ReportingServices.NativeMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="294" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Server IIS role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Server.IIS.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="295" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DNS Server role 2016</Name>
+            <Id>LW.Microsoft.Windows.DNSServer.2016.Server</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="296" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Remote Desktop Services role 2012R2</Name>
+            <Id>LW.Microsoft.Windows.Server.Remote.Desktop.Services.2012R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="297" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight DNS Server role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.DNS.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="298" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight remote access role 2008R2</Name>
+            <Id>LW.Microsoft.Windows.Routing.Remote.Service.2008R2</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="299" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SharePoint 2010 Products</Name>
+            <Id>LW.Microsoft.Windows.SharePoint.Server.2010</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="300" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server role 2012</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2012</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="301" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight BizTalk server 2013</Name>
+            <Id>LW.Microsoft.Windows.Biztalk.2013</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="302" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Windows Lightweight JEE WebSphere 8plus</Name>
+            <Id>LW.Microsoft.JEE.WebSphere.8plus.Windows.Configuration</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="303" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight SQL Server 2016 Analysis Services</Name>
+            <Id>LW.Microsoft.Windows.SQL.Server.2016.AnalysisServices</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="304" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight BlackBerry (by OpsLogix)</Name>
+            <Id>LW.Microsoft.3rdParty.OpsLogix.BlackBerryV12</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="305" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Lightweight Active Directory Server role 2012</Name>
+            <Id>LW.Microsoft.Windows.Server.ActiveDirectory.2012</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target>a52a104b-f44f-e319-5f17-6891260c221e</Target>
+      </View>
+    </Views>
+    <Folders>
+      <Folder ID="SCOM.GatewayMaintenanceMode.Root.Folder" Accessibility="Internal" ParentFolder="SC!Microsoft.SystemCenter.Monitoring.ViewFolder.Root" />
+    </Folders>
+    <FolderItems>
+      <FolderItem ElementID="SCOM.GatewayMaintenanceMode.Alert.View" ID="SCOM.GatewayMaintenanceMode.Alert.View.FolderItem" Folder="SCOM.GatewayMaintenanceMode.Root.Folder" />
+      <FolderItem ElementID="SCOM.GatewayMaintenanceMode.State.View" ID="SCOM.GatewayMaintenanceMode.State.View.FolderItem" Folder="SCOM.GatewayMaintenanceMode.Root.Folder" />
+      <FolderItem ElementID="SCOM.GatewayMaintenanceMode.Group1.View" ID="SCOM.GatewayMaintenanceMode.Group1.View.FolderItem" Folder="SCOM.GatewayMaintenanceMode.Root.Folder" />
+      <FolderItem ElementID="SCOM.GatewayMaintenanceMode.Group1.Computers.View" ID="SCOM.GatewayMaintenanceMode.Group1.Computers.View.FolderItem" Folder="SCOM.GatewayMaintenanceMode.Root.Folder" />
+    </FolderItems>
+    <StringResources>
+      <StringResource ID="SCOM.GatewayMaintenanceMode.Ping.Monitor.AlertMessage" />
+    </StringResources>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode">
+          <Name>SCOM Gateway Maintenance Mode </Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Alert.View">
+          <Name>Alerts</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group">
+          <Name>Gateway DMZOMGW1 Assigned Computers Group</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.DMZOMGW1Computers.Group.Discovery">
+          <Name>Gateway DMZOMGW1 Assigned Computers Group Discovery</Name>
+          <Description>This discovery rule populates a group of Windows Computer Objects from a PowerShell Script</Description>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group">
+          <Name>Gateway DMZOMGW2 Assigned Computers Group</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.DMZOMGW2Computers.Group.Discovery">
+          <Name>Gateway DMZOMGW2 Assigned Computers Group Discovery</Name>
+          <Description>This discovery rule populates a group of Windows Computer Objects from a PowerShell Script</Description>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Ping.Monitor">
+          <Name>SCOM Gateway Maintenance Mode Ping Monitor</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Ping.Monitor.AlertMessage">
+          <Name>SCOM Gateway Server Ping Failed</Name>
+          <Description>SCOM Gateway Maintenance Mode Ping Monitor
+Result: {0}</Description>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Ping.Monitor.Start.Recovery">
+          <Name>Start Gateway Group Maintenance Mode Recovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Ping.Monitor.Stop.Recovery">
+          <Name>Stop Gateway Group Maintenance Mode Recovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Ping.Monitor.Recovery.WA">
+          <Name>SCOM Gateway Maintenance Mode Ping Monitor Recovery WriteAction</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Ping.Monitor" SubElementID="BadCondition">
+          <Name>Bad Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Ping.Monitor" SubElementID="GoodCondition">
+          <Name>Good Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Root.Folder">
+          <Name>Gateway Maintenance Mode</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.State.View">
+          <Name>Gateway Availability</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Group1.View">
+          <Name>GW DMZOMGW1 Group</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCOM.GatewayMaintenanceMode.Group1.Computers.View">
+          <Name>GW DMZOMGW1 Computers</Name>
+          <Description />
+        </DisplayString>
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPack>
